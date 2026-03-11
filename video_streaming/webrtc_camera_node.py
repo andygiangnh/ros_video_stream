@@ -1,8 +1,10 @@
 import argparse
 import asyncio
 from fractions import Fraction
+import os
 import threading
 import time
+from pathlib import Path
 
 import cv2
 import rclpy
@@ -99,8 +101,30 @@ class WebRTCCameraNode(Node):
 
         self._pcs = set()
         self._app = web.Application()
-        self._app.router.add_get("/", self._index)
-        self._app.router.add_get("/client.js", self._client_js)
+
+        # Serve static files (HTML, CSS, JS) from www/ directory
+        # Try multiple possible locations: installed package, source dir, etc.
+        possible_www_dirs = [
+            Path(__file__).parent / "www",  # Installed package location
+        ]
+        
+        www_dir = None
+        for candidate in possible_www_dirs:
+            if candidate.is_dir():
+                www_dir = str(candidate)
+                break
+        
+        if www_dir:
+            # Add explicit root handler BEFORE static route (routes are matched in order)
+            async def root_handler(request):
+                return web.FileResponse(Path(www_dir) / "index.html")
+            self._app.router.add_get("/", root_handler)
+            self._app.router.add_static("/", www_dir, name="static")
+            self.get_logger().info(f"Serving static files from: {www_dir}")
+        else:
+            self.get_logger().warn(f"Static directory not found. Checked: {[str(p) for p in possible_www_dirs]}")
+
+        # WebRTC signaling endpoint
         self._app.router.add_post("/offer", self._offer)
 
         self._runner = web.AppRunner(self._app)
@@ -123,169 +147,6 @@ class WebRTCCameraNode(Node):
         await self._runner.setup()
         site = web.TCPSite(self._runner, self._host, self._port)
         await site.start()
-
-    async def _index(self, _request):
-        html = """
-<!doctype html>
-<html>
-  <head>
-    <meta charset=\"utf-8\" />
-    <title>ROS2 WebRTC Camera</title>
-    <style>
-      body { font-family: sans-serif; margin: 24px; }
-      video { width: min(100%, 960px); border: 1px solid #bbb; border-radius: 8px; }
-      button { margin-right: 8px; }
-    </style>
-  </head>
-  <body>
-    <h2>ROS 2 Camera Stream (WebRTC)</h2>
-    <button id=\"start\">Start</button>
-    <button id=\"stop\">Stop</button>
-    <p id=\"status\">Idle</p>
-        <p id=\"metrics\">FPS: -- | RTT: -- ms | Jitter Buffer: -- ms</p>
-    <video id=\"video\" autoplay playsinline controls></video>
-    <script src=\"/client.js\"></script>
-  </body>
-</html>
-"""
-        return web.Response(text=html, content_type="text/html")
-
-    async def _client_js(self, _request):
-        script = """
-let pc = null;
-let statsTimer = null;
-let decodedFps = null;
-let smoothedFps = null;
-let lastFrameNow = null;
-
-function setMetrics({ fps = null, rttMs = null, jitterBufferMs = null } = {}) {
-    const fmt = (value, suffix = '') => (value == null || Number.isNaN(value) ? '--' : `${value.toFixed(1)}${suffix}`);
-    document.getElementById('metrics').textContent =
-        `FPS: ${fmt(fps)} | RTT: ${fmt(rttMs, ' ms')} | Jitter Buffer: ${fmt(jitterBufferMs, ' ms')}`;
-}
-
-function startFrameMeter(videoElement) {
-    if (!videoElement.requestVideoFrameCallback) {
-        return;
-    }
-
-    const onFrame = (now) => {
-        if (lastFrameNow !== null && now > lastFrameNow) {
-            const instantFps = 1000 / (now - lastFrameNow);
-            smoothedFps = smoothedFps === null ? instantFps : (smoothedFps * 0.8 + instantFps * 0.2);
-            decodedFps = smoothedFps;
-        }
-        lastFrameNow = now;
-        if (pc) {
-            videoElement.requestVideoFrameCallback(onFrame);
-        }
-    };
-
-    videoElement.requestVideoFrameCallback(onFrame);
-}
-
-async function pollStats() {
-    if (!pc) {
-        return;
-    }
-
-    const stats = await pc.getStats();
-    let rttMs = null;
-    let jitterBufferMs = null;
-    let statsFps = null;
-
-    stats.forEach((report) => {
-        if (
-            report.type === 'candidate-pair' &&
-            report.state === 'succeeded' &&
-            report.nominated &&
-            typeof report.currentRoundTripTime === 'number'
-        ) {
-            rttMs = report.currentRoundTripTime * 1000;
-        }
-
-        if (report.type === 'inbound-rtp' && report.kind === 'video') {
-            if (
-                typeof report.jitterBufferDelay === 'number' &&
-                typeof report.jitterBufferEmittedCount === 'number' &&
-                report.jitterBufferEmittedCount > 0
-            ) {
-                jitterBufferMs = (report.jitterBufferDelay / report.jitterBufferEmittedCount) * 1000;
-            }
-
-            if (typeof report.framesPerSecond === 'number') {
-                statsFps = report.framesPerSecond;
-            }
-        }
-    });
-
-    setMetrics({ fps: statsFps ?? decodedFps, rttMs, jitterBufferMs });
-}
-
-async function start() {
-  if (pc) {
-    return;
-  }
-
-  document.getElementById('status').textContent = 'Starting...';
-    setMetrics();
-    decodedFps = null;
-    smoothedFps = null;
-    lastFrameNow = null;
-  pc = new RTCPeerConnection();
-  pc.addTransceiver('video', { direction: 'recvonly' });
-
-  pc.ontrack = (event) => {
-    const video = document.getElementById('video');
-    video.srcObject = event.streams[0];
-        startFrameMeter(video);
-  };
-
-    try {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        const response = await fetch('/offer', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sdp: pc.localDescription.sdp, type: pc.localDescription.type }),
-        });
-
-        const answer = await response.json();
-        await pc.setRemoteDescription(answer);
-
-        if (statsTimer) {
-            clearInterval(statsTimer);
-        }
-        statsTimer = setInterval(() => {
-            pollStats().catch(() => {});
-        }, 1000);
-
-        document.getElementById('status').textContent = 'Streaming';
-    } catch (err) {
-        document.getElementById('status').textContent = `Error: ${err}`;
-        stop();
-    }
-}
-
-function stop() {
-    if (statsTimer) {
-        clearInterval(statsTimer);
-        statsTimer = null;
-    }
-
-  if (pc) {
-    pc.close();
-    pc = null;
-  }
-  document.getElementById('status').textContent = 'Stopped';
-    setMetrics();
-}
-
-document.getElementById('start').onclick = start;
-document.getElementById('stop').onclick = stop;
-"""
-        return web.Response(text=script, content_type="application/javascript")
 
     async def _offer(self, request):
         params = await request.json()
