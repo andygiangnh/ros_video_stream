@@ -130,6 +130,46 @@
         display: block;
         margin-bottom: 4px;
       }
+
+      .btn-record {
+        background: #d32f2f;
+      }
+      .btn-record:hover {
+        background: #b71c1c;
+      }
+      .btn-record-stop {
+        background: #555;
+      }
+      .btn-record-stop:hover {
+        background: #333;
+      }
+
+      .rec-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #d32f2f;
+        margin-right: 6px;
+        animation: blink 1s step-start infinite;
+      }
+      @keyframes blink {
+        50% { opacity: 0; }
+      }
+
+      .recording-section {
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid #eee;
+      }
+
+      .recording-section h3 {
+        margin: 0 0 12px;
+        font-size: 14px;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
     </style>
   </head>
   <body>
@@ -165,9 +205,28 @@
         <video id="video" autoplay playsinline muted></video>
       </div>
 
+      <div class="recording-section">
+        <h3>Recording</h3>
+        <div class="controls">
+          <button id="rec-start" class="btn-record">&#9679; Start Recording</button>
+          <button id="rec-stop" class="btn-record-stop" disabled>&#9632; Stop Recording</button>
+        </div>
+        <div class="status">
+          <div class="status-item">
+            <span class="status-label">Recording Status</span>
+            <span id="rec-status" class="status-value">Idle</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Last File</span>
+            <span id="rec-file" class="status-value" style="font-size:12px;word-break:break-all;">--</span>
+          </div>
+        </div>
+      </div>
+
       <div class="info-box">
         <strong>Tuning Tips:</strong>
         Jitter Buffer growing? Reduce FPS or resolution. RTT high? Check network latency.
+        Recordings saved to host <code>$HOME/video/</code> as MP4.
       </div>
     </div>
 

@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-cv-bridge \
     ros-humble-sensor-msgs \
     ros-humble-image-transport \
+    ros-humble-launch-ros \
+    ffmpeg \
     v4l-utils \
     && rm -rf /var/lib/apt/lists/*
 
@@ -27,4 +29,4 @@ RUN chmod +x /entrypoint.sh
 
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["ros2", "run", "video_streaming", "webrtc_camera_node"]
+CMD ["ros2", "launch", "video_streaming", "stream_and_record.launch.py"]

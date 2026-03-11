@@ -13,6 +13,9 @@ from aiortc.contrib.media import MediaRelay
 from aiohttp import web
 from av import VideoFrame
 from rclpy.node import Node
+from sensor_msgs.msg import Image as RosImage
+from std_msgs.msg import Header
+from std_srvs.srv import SetBool
 
 
 class OpenCVCameraTrack(VideoStreamTrack):
@@ -91,6 +94,8 @@ class WebRTCCameraNode(Node):
         self._width = width
         self._height = height
         self._fps = fps
+
+        # ---- Camera track + WebRTC relay ------------------------------------
         self._camera_track = OpenCVCameraTrack(
             camera_index=self._camera_index,
             width=self._width,
@@ -99,34 +104,39 @@ class WebRTCCameraNode(Node):
         )
         self._relay = MediaRelay()
 
+        # ---- ROS 2 publisher: frames for recorder node ----------------------
+        self._image_pub = self.create_publisher(RosImage, "/camera/image_raw", 10)
+        self.create_timer(1.0 / max(fps, 1), self._publish_latest_frame)
+
+        # ---- ROS 2 service client: control recorder node -------------------
+        self._record_client = self.create_client(SetBool, "/video_recorder_node/set_recording")
+        self._is_recording_active = False
+
+        # ---- aiohttp web application ----------------------------------------
         self._pcs = set()
         self._app = web.Application()
 
-        # Serve static files (HTML, CSS, JS) from www/ directory
-        # Try multiple possible locations: installed package, source dir, etc.
-        possible_www_dirs = [
-            Path(__file__).parent / "www",  # Installed package location
-        ]
-        
-        www_dir = None
-        for candidate in possible_www_dirs:
-            if candidate.is_dir():
-                www_dir = str(candidate)
-                break
-        
+        possible_www_dirs = [Path(__file__).parent / "www"]
+        www_dir = next((str(p) for p in possible_www_dirs if p.is_dir()), None)
+
         if www_dir:
-            # Add explicit root handler BEFORE static route (routes are matched in order)
             async def root_handler(request):
                 return web.FileResponse(Path(www_dir) / "index.html")
             self._app.router.add_get("/", root_handler)
             self._app.router.add_static("/", www_dir, name="static")
             self.get_logger().info(f"Serving static files from: {www_dir}")
         else:
-            self.get_logger().warn(f"Static directory not found. Checked: {[str(p) for p in possible_www_dirs]}")
+            self.get_logger().warn("Static www/ directory not found")
 
-        # WebRTC signaling endpoint
+        # WebRTC signaling
         self._app.router.add_post("/offer", self._offer)
 
+        # Recording control endpoints
+        self._app.router.add_post("/recording/start", self._recording_start)
+        self._app.router.add_post("/recording/stop",  self._recording_stop)
+        self._app.router.add_get("/recording/status", self._recording_status)
+
+        # ---- Start aiohttp event loop in background thread ------------------
         self._runner = web.AppRunner(self._app)
         self._loop = asyncio.new_event_loop()
         self._loop_thread = threading.Thread(target=self._run_event_loop, daemon=True)
@@ -139,6 +149,65 @@ class WebRTCCameraNode(Node):
             f"WebRTC signaling server started at http://{self._host}:{self._port}"
         )
 
+    # ---- Frame publishing ---------------------------------------------------
+
+    def _publish_latest_frame(self) -> None:
+        """Timer callback: publish latest frame as sensor_msgs/Image for recorder."""
+        with self._camera_track._frame_lock:
+            if self._camera_track._latest_frame is None:
+                return
+            frame_bgr = self._camera_track._latest_frame.copy()
+
+        msg = RosImage()
+        msg.header = Header()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = "camera"
+        msg.height = self._height
+        msg.width = self._width
+        msg.encoding = "bgr8"
+        msg.is_bigendian = False
+        msg.step = self._width * 3
+        msg.data = frame_bgr.tobytes()
+        self._image_pub.publish(msg)
+
+    # ---- Recording (async ROS 2 service calls from aiohttp context) ---------
+
+    async def _call_record_service(self, start: bool) -> dict:
+        """Bridge async aiohttp context → sync ROS 2 service call."""
+        if not self._record_client.wait_for_service(timeout_sec=1.0):
+            return {"success": False, "message": "Recorder service unavailable. Is video_recorder_node running?"}
+
+        req = SetBool.Request()
+        req.data = start
+
+        result_event = asyncio.Event()
+        result_holder: list = [None]
+
+        ros_future = self._record_client.call_async(req)
+
+        def on_done(future):
+            try:
+                result_holder[0] = future.result()
+            except Exception as e:
+                self.get_logger().warn(f"Recording service error: {e}")
+            self._loop.call_soon_threadsafe(result_event.set)
+
+        ros_future.add_done_callback(on_done)
+
+        try:
+            await asyncio.wait_for(result_event.wait(), timeout=5.0)
+        except asyncio.TimeoutError:
+            return {"success": False, "message": "Service call timed out"}
+
+        result = result_holder[0]
+        if result is None:
+            return {"success": False, "message": "Service call failed"}
+
+        if result.success:
+            self._is_recording_active = start
+
+        return {"success": result.success, "message": result.message}
+
     def _run_event_loop(self):
         asyncio.set_event_loop(self._loop)
         self._loop.run_forever()
@@ -147,6 +216,17 @@ class WebRTCCameraNode(Node):
         await self._runner.setup()
         site = web.TCPSite(self._runner, self._host, self._port)
         await site.start()
+
+    async def _recording_start(self, _request):
+        result = await self._call_record_service(True)
+        return web.json_response(result)
+
+    async def _recording_stop(self, _request):
+        result = await self._call_record_service(False)
+        return web.json_response(result)
+
+    async def _recording_status(self, _request):
+        return web.json_response({"recording": self._is_recording_active})
 
     async def _offer(self, request):
         params = await request.json()
@@ -192,6 +272,8 @@ class WebRTCCameraNode(Node):
 
 
 def parse_args():
+    import sys
+    from rclpy.utilities import remove_ros_args
     parser = argparse.ArgumentParser(description="ROS 2 WebRTC camera streamer node")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8080)
@@ -199,7 +281,7 @@ def parse_args():
     parser.add_argument("--width", type=int, default=640)
     parser.add_argument("--height", type=int, default=480)
     parser.add_argument("--fps", type=int, default=30)
-    return parser.parse_args()
+    return parser.parse_args(remove_ros_args(sys.argv[1:]))
 
 
 def main(args=None):
