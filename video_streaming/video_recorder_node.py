@@ -105,6 +105,22 @@ class VideoRecorderNode(Node):
                 "-movflags", "+faststart",
                 self._current_file,
             ]
+            cmd = [
+                "ffmpeg", "-y",
+                # Input: raw BGR frames piped from ROS 2 image topic
+                "-f", "rawvideo",
+                "-pix_fmt", "bgr24",
+                "-s", f"{self._width}x{self._height}",
+                "-r", str(self._fps),
+                "-i", "pipe:0",
+                # Output: H.264 MP4 — yuv420p is required for broad player/browser compatibility
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-crf", "23",
+                "-pix_fmt", "yuv420p",
+                "-movflags", "+faststart",
+                self._current_file,
+            ]
 
             try:
                 self._ffmpeg_proc = subprocess.Popen(
