@@ -12,8 +12,6 @@ def generate_launch_description():
         DeclareLaunchArgument("width",        default_value="640"),
         DeclareLaunchArgument("height",       default_value="360"),
         DeclareLaunchArgument("fps",          default_value="15"),
-        DeclareLaunchArgument("output_dir",   default_value="/recordings"),
-        DeclareLaunchArgument("input_topic",  default_value="/camera/image_raw"),
 
         Node(
             package="video_streaming",
@@ -27,20 +25,6 @@ def generate_launch_description():
                 "--width",        LaunchConfiguration("width"),
                 "--height",       LaunchConfiguration("height"),
                 "--fps",          LaunchConfiguration("fps"),
-            ],
-        ),
-
-        Node(
-            package="video_streaming",
-            executable="video_recorder_node",
-            name="video_recorder_node",
-            output="screen",
-            arguments=[
-                "--output-dir",   LaunchConfiguration("output_dir"),
-                "--width",        LaunchConfiguration("width"),
-                "--height",       LaunchConfiguration("height"),
-                "--fps",          LaunchConfiguration("fps"),
-                "--input-topic",  LaunchConfiguration("input_topic"),
             ],
         ),
     ])

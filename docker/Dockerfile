@@ -29,4 +29,4 @@ RUN chmod +x /entrypoint.sh
 
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["ros2", "launch", "video_streaming", "stream_and_record.launch.py"]
+CMD ["ros2", "launch", "video_streaming", "stream_only.launch.py"]

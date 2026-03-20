@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import os
 import subprocess
 import threading
@@ -186,6 +187,179 @@ class RtmpVideoTrack(VideoStreamTrack):
             "fps": self._fps,
         }
 
+    def get_latest_frame(self):
+        with self._frame_lock:
+            if self._latest_frame is None:
+                return None
+            return self._latest_frame.copy()
+
+
+class GatewayRecorder:
+    def __init__(self, track: RtmpVideoTrack, record_dir: str, width: int, height: int, fps: int):
+        self._track = track
+        self._record_dir = record_dir
+        self._width = width
+        self._height = height
+        self._fps = max(fps, 1)
+        self._logger = logging.getLogger("webrtc-gateway.recorder")
+
+        self._lock = threading.Lock()
+        self._ffmpeg_proc: subprocess.Popen | None = None
+        self._is_recording = False
+        self._current_file: str | None = None
+        self._running = True
+
+        self._writer_thread = threading.Thread(target=self._writer_loop, daemon=True)
+        self._writer_thread.start()
+
+    def _build_ffmpeg_cmd(self, output_file: str) -> list[str]:
+        return [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "bgr24",
+            "-s",
+            f"{self._width}x{self._height}",
+            "-r",
+            str(self._fps),
+            "-i",
+            "pipe:0",
+            "-an",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "23",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            output_file,
+        ]
+
+    def _writer_loop(self):
+        interval = 1.0 / self._fps
+        next_tick = time.time()
+
+        while self._running:
+            frame = self._track.get_latest_frame()
+
+            with self._lock:
+                proc = self._ffmpeg_proc
+                recording = self._is_recording
+
+            if not recording or proc is None or proc.stdin is None:
+                time.sleep(0.02)
+                next_tick = time.time()
+                continue
+
+            if frame is None:
+                time.sleep(0.01)
+                continue
+
+            if proc.poll() is not None:
+                with self._lock:
+                    self._is_recording = False
+                    self._ffmpeg_proc = None
+                self._logger.warning("FFmpeg exited unexpectedly; recording stopped")
+                continue
+
+            try:
+                proc.stdin.write(frame.tobytes())
+            except BrokenPipeError:
+                with self._lock:
+                    self._is_recording = False
+                    self._ffmpeg_proc = None
+                self._logger.warning("FFmpeg pipe broken; recording stopped")
+                continue
+            except Exception as exc:
+                with self._lock:
+                    self._is_recording = False
+                    self._ffmpeg_proc = None
+                self._logger.warning("Recording frame write failed: %s", exc)
+                continue
+
+            next_tick += interval
+            sleep_time = next_tick - time.time()
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            else:
+                next_tick = time.time()
+
+    def start_recording(self) -> tuple[bool, str]:
+        with self._lock:
+            if self._is_recording:
+                return False, "Already recording"
+
+            try:
+                os.makedirs(self._record_dir, exist_ok=True)
+            except OSError as exc:
+                return False, f"Cannot create output directory: {exc}"
+
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            self._current_file = os.path.join(self._record_dir, f"recording_{timestamp}.mp4")
+
+            try:
+                self._ffmpeg_proc = subprocess.Popen(
+                    self._build_ffmpeg_cmd(self._current_file),
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            except FileNotFoundError:
+                self._current_file = None
+                self._ffmpeg_proc = None
+                return False, "ffmpeg not found in container"
+            except Exception as exc:
+                self._current_file = None
+                self._ffmpeg_proc = None
+                return False, f"Failed to start recorder: {exc}"
+
+            self._is_recording = True
+            self._logger.info("Recording started -> %s", self._current_file)
+            return True, f"Recording started: {self._current_file}"
+
+    def stop_recording(self) -> tuple[bool, str]:
+        with self._lock:
+            if not self._is_recording:
+                return False, "Not currently recording"
+
+            self._is_recording = False
+            proc = self._ffmpeg_proc
+            self._ffmpeg_proc = None
+            saved_file = self._current_file
+            self._current_file = None
+
+        if proc is not None and proc.stdin is not None:
+            try:
+                proc.stdin.close()
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+            except Exception:
+                pass
+
+        self._logger.info("Recording stopped -> %s", saved_file)
+        return True, f"Saved: {saved_file}"
+
+    def status(self) -> dict:
+        with self._lock:
+            return {
+                "recording": self._is_recording,
+                "current_file": self._current_file,
+                "record_dir": self._record_dir,
+            }
+
+    def close(self):
+        self._running = False
+        self.stop_recording()
+        if self._writer_thread.is_alive():
+            self._writer_thread.join(timeout=1)
+
 
 class GatewayApp:
     def __init__(self):
@@ -195,12 +369,14 @@ class GatewayApp:
         self.width = int(os.getenv("WIDTH", "640"))
         self.height = int(os.getenv("HEIGHT", "360"))
         self.fps = int(os.getenv("FPS", "15"))
+        self.record_dir = os.getenv("RECORD_DIR", "/video")
 
         logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
         self._logger = logging.getLogger("webrtc-gateway")
 
         self._pcs: set[RTCPeerConnection] = set()
         self._track = RtmpVideoTrack(self.rtmp_url, self.width, self.height, self.fps)
+        self._recorder = GatewayRecorder(self._track, self.record_dir, self.width, self.height, self.fps)
         self._relay = MediaRelay()
         self._logger.info("Gateway starting on %s:%d using RTMP source %s", self.host, self.port, self.rtmp_url)
 
@@ -215,16 +391,23 @@ class GatewayApp:
         self.app.router.add_post("/offer", self._offer)
         self.app.router.add_get("/debug/stream", self._debug_stream)
 
-        # Stub recording endpoints to keep UI compatibility.
+        # Recording endpoints handled directly in gateway container.
         self.app.router.add_get("/recording/status", self._recording_status)
-        self.app.router.add_post("/recording/start", self._recording_not_supported)
-        self.app.router.add_post("/recording/stop", self._recording_not_supported)
+        self.app.router.add_post("/recording/start", self._recording_start)
+        self.app.router.add_post("/recording/stop", self._recording_stop)
 
     async def _recording_status(self, _request):
-        return web.json_response({"recording": False, "message": "Recording not available on gateway"})
+        return web.json_response(self._recorder.status())
 
-    async def _recording_not_supported(self, _request):
-        return web.json_response({"success": False, "message": "Recording is handled on ROS side"}, status=400)
+    async def _recording_start(self, _request):
+        success, message = self._recorder.start_recording()
+        status = 200 if success else 400
+        return web.json_response({"success": success, "message": message}, status=status)
+
+    async def _recording_stop(self, _request):
+        success, message = self._recorder.stop_recording()
+        status = 200 if success else 400
+        return web.json_response({"success": success, "message": message}, status=status)
 
     async def _debug_stream(self, _request):
         data = self._track.snapshot()
@@ -261,6 +444,7 @@ class GatewayApp:
         for pc in list(self._pcs):
             await pc.close()
             self._pcs.discard(pc)
+        self._recorder.close()
         self._track.close()
 
     def run(self):

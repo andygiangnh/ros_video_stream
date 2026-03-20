@@ -38,5 +38,8 @@ services:
       WIDTH: ${WIDTH:-640}
       HEIGHT: ${HEIGHT:-360}
       FPS: ${FPS:-12}
+      RECORD_DIR: /video
+    volumes:
+      - /home/giangnh101/video:/video
     ports:
       - "${HOST_PORT:-8080}:8080"

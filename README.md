@@ -1,17 +1,17 @@
 # video_streaming
 
 ## Introduction
-`video_streaming` is a ROS 2 package for low-latency camera streaming to web browsers using WebRTC, with optional ROS-based video recording.
+`video_streaming` is a ROS 2 package for low-latency camera streaming to web browsers using WebRTC, with recording handled by the RTMP WebRTC gateway container.
 
 It supports two deployment modes:
-- **Single-node mode**: ROS node serves WebRTC directly (current/default flow)
-- **DDS-isolated mode**: ROS side publishes to RTMP, non-ROS side serves WebRTC
+- **Single-node mode**: ROS node serves WebRTC directly (streaming only)
+- **DDS-isolated mode**: ROS side publishes to RTMP, non-ROS side serves WebRTC and recording
 
 What it does:
 - Captures frames from a local camera (default index `0`)
 - Serves a WebRTC web app on port `8080`
 - Supports multiple browser clients
-- Optionally records frames via `video_recorder_node`
+- Records video files in DDS-isolated mode via gateway endpoints (`/recording/*`)
 
 ## Quick-Start
 
@@ -21,7 +21,7 @@ From your ROS 2 workspace root (`/home/giangnh101/ros_ws`):
 ```bash
 colcon build --packages-select video_streaming
 source install/setup.bash
-ros2 launch video_streaming stream_and_record.launch.py
+ros2 launch video_streaming stream_only.launch.py
 ```
 
 Open in browser:
@@ -40,6 +40,10 @@ chmod +x docker/build_image.sh docker/run_container.sh docker/entrypoint.sh
 Open in browser:
 - `http://localhost:8080`
 - `http://<your-lan-ip>:8080`
+
+Note:
+- This single-container mode is for streaming.
+- Recording is supported in DDS-isolated mode (section C).
 
 Useful Docker overrides:
 
@@ -71,6 +75,17 @@ Optional overrides:
 HOST_PORT=8090 CAMERA_DEVICE=/dev/video2 WIDTH=640 HEIGHT=360 FPS=15 docker compose -f docker-compose.bridge.yml up --build
 ```
 
+Recording in DDS-isolated mode:
+- Recording is handled by `webrtc-gateway` (not ROS nodes)
+- Host folder `/home/giangnh101/video` is mounted to container path `/video`
+- Use API endpoints:
+
+```bash
+curl -X POST http://localhost:8080/recording/start
+curl -X POST http://localhost:8080/recording/stop
+curl http://localhost:8080/recording/status
+```
+
 ## Prerequisites
 - ROS 2 Humble (for native run)
 - Linux camera device (default `/dev/video0`)
@@ -89,11 +104,13 @@ Default launch/runtime values:
 DDS-isolated mode defaults:
 - `rtmp_url=rtmp://rtmp-server:1935/stream/stream`
 - WebRTC gateway port `8080`
+- Recording directory in container: `/video`
+- Host bind mount for recordings: `/home/giangnh101/video:/video`
 
 Native launch override example:
 
 ```bash
-ros2 launch video_streaming stream_and_record.launch.py width:=1280 height:=720 fps:=20 camera_index:=0
+ros2 launch video_streaming stream_only.launch.py width:=1280 height:=720 fps:=20 camera_index:=0
 ```
 
 ## Troubleshooting
