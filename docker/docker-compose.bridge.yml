@@ -1,0 +1,42 @@
+services:
+  rtmp-server:
+    image: alfg/nginx-rtmp:latest
+    container_name: rtmp-server
+    volumes:
+      - ./rtmp/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+    ports:
+      - "1935:1935"
+
+  ros-camera-rtmp:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: ros-camera-rtmp
+    depends_on:
+      - rtmp-server
+    devices:
+      - "${CAMERA_DEVICE:-/dev/video0}:${CAMERA_DEVICE:-/dev/video0}"
+    command: >
+      ros2 launch video_streaming camera_to_rtmp.launch.py
+      camera_index:=${CAMERA_INDEX:-0}
+      width:=${WIDTH:-640}
+      height:=${HEIGHT:-360}
+      fps:=${FPS:-12}
+      rtmp_url:=rtmp://rtmp-server:1935/stream/stream
+
+  webrtc-gateway:
+    build:
+      context: ..
+      dockerfile: docker/non_ros_gateway/Dockerfile
+    container_name: webrtc-gateway
+    depends_on:
+      - rtmp-server
+    environment:
+      RTMP_URL: rtmp://rtmp-server:1935/stream/stream
+      WEB_HOST: 0.0.0.0
+      WEB_PORT: 8080
+      WIDTH: ${WIDTH:-640}
+      HEIGHT: ${HEIGHT:-360}
+      FPS: ${FPS:-12}
+    ports:
+      - "${HOST_PORT:-8080}:8080"
