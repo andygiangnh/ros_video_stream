@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 from aiohttp import web
 from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
+from aiortc.rtcconfiguration import RTCConfiguration, RTCIceServer
 from aiortc.contrib.media import MediaRelay
 from av import VideoFrame
 
@@ -377,6 +378,8 @@ class GatewayApp:
         self._pcs: set[RTCPeerConnection] = set()
         self._track = RtmpVideoTrack(self.rtmp_url, self.width, self.height, self.fps)
         self._recorder = GatewayRecorder(self._track, self.record_dir, self.width, self.height, self.fps)
+        self._ice_servers = self._build_ice_servers()
+        self._ice_servers_payload = self._ice_servers_to_payload(self._ice_servers)
         self._relay = MediaRelay()
         self._logger.info("Gateway starting on %s:%d using RTMP source %s", self.host, self.port, self.rtmp_url)
 
@@ -388,6 +391,7 @@ class GatewayApp:
 
         self.app.router.add_get("/", root_handler)
         self.app.router.add_static("/", str(www_dir), name="static")
+        self.app.router.add_get("/config", self._config)
         self.app.router.add_post("/offer", self._offer)
         self.app.router.add_get("/debug/stream", self._debug_stream)
 
@@ -414,12 +418,52 @@ class GatewayApp:
         data["peer_count"] = len(self._pcs)
         return web.json_response(data)
 
+    async def _config(self, _request):
+        return web.json_response({"iceServers": self._ice_servers_payload})
+
+    def _build_ice_servers(self) -> list[RTCIceServer]:
+        ice_servers: list[RTCIceServer] = []
+
+        stun_server = os.getenv("WEBRTC_STUN_SERVER", "stun:stun.l.google.com:19302").strip()
+        if stun_server:
+            ice_servers.append(RTCIceServer(urls=stun_server))
+
+        turn_server = os.getenv("WEBRTC_TURN_SERVER", "").strip()
+        if turn_server:
+            turn_urls = turn_server
+            if not turn_urls.startswith(("turn:", "turns:")):
+                turn_urls = f"turn:{turn_urls}"
+
+            turn_username = os.getenv("WEBRTC_TURN_USERNAME", "").strip() or None
+            turn_credential = os.getenv("WEBRTC_TURN_CREDENTIAL", "").strip() or None
+            ice_servers.append(
+                RTCIceServer(
+                    urls=turn_urls,
+                    username=turn_username,
+                    credential=turn_credential,
+                )
+            )
+
+        return ice_servers
+
+    @staticmethod
+    def _ice_servers_to_payload(ice_servers: list[RTCIceServer]) -> list[dict]:
+        payload: list[dict] = []
+        for server in ice_servers:
+            item: dict = {"urls": server.urls}
+            if server.username:
+                item["username"] = server.username
+            if server.credential:
+                item["credential"] = server.credential
+            payload.append(item)
+        return payload
+
     async def _offer(self, request: web.Request):
         params = await request.json()
         offer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
         self._logger.info("Received /offer request")
 
-        pc = RTCPeerConnection()
+        pc = RTCPeerConnection(configuration=RTCConfiguration(iceServers=self._ice_servers))
         self._pcs.add(pc)
 
         @pc.on("connectionstatechange")

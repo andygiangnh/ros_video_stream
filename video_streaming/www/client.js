@@ -3,6 +3,23 @@ let statsTimer = null;
 let decodedFps = null;
 let smoothedFps = null;
 let lastFrameNow = null;
+let iceServersPromise = null;
+
+async function getIceServers() {
+  if (!iceServersPromise) {
+    iceServersPromise = fetch('/config')
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Config error: ${response.status}`);
+        }
+
+        return response.json();
+      })
+      .then((data) => data.iceServers || []);
+  }
+
+  return iceServersPromise;
+}
 
 function updateStatus(text, className = null) {
   const status = document.getElementById('status');
@@ -119,7 +136,8 @@ async function start() {
     lastFrameNow = null;
 
     // Create peer connection
-    pc = new RTCPeerConnection();
+    const iceServers = await getIceServers();
+    pc = new RTCPeerConnection({ iceServers });
 
     // Request video-only, receive-only transceiver
     pc.addTransceiver('video', { direction: 'recvonly' });
