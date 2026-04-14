@@ -8,6 +8,7 @@ HOST_PORT="${HOST_PORT:-8080}"
 USE_HOST_NETWORK="${USE_HOST_NETWORK:-1}"
 HOST_IP="${HOST_IP:-}"
 CAMERA_INDEX="${CAMERA_INDEX:-0}"
+IMAGE_TOPIC="${IMAGE_TOPIC:-/camera/image_raw}"
 WIDTH="${WIDTH:-640}"
 HEIGHT="${HEIGHT:-360}"
 FPS="${FPS:-15}"
@@ -34,6 +35,7 @@ if [[ -n "${HOST_IP}" ]]; then
   echo "  Open on mobile : http://${HOST_IP}:${HOST_PORT}"
 fi
 echo "  Camera         : ${CAMERA_DEVICE} (index=${CAMERA_INDEX}, ${WIDTH}x${HEIGHT}@${FPS}fps)"
+echo "  ROS topic      : ${IMAGE_TOPIC}"
 
 docker run "${ARGS[@]}" \
   "${IMAGE_NAME}" \
@@ -41,4 +43,5 @@ docker run "${ARGS[@]}" \
     width:="${WIDTH}" \
     height:="${HEIGHT}" \
     fps:="${FPS}" \
-    camera_index:="${CAMERA_INDEX}"
+    camera_index:="${CAMERA_INDEX}" \
+    image_topic:="${IMAGE_TOPIC}"

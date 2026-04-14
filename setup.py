@@ -31,7 +31,6 @@ setup(
         'console_scripts': [
             'webrtc_camera_node = video_streaming.webrtc_camera_node:main',
             'camera_publisher_node = video_streaming.camera_publisher_node:main',
-            'rtmp_bridge_node = video_streaming.rtmp_bridge_node:main',
         ],
     },
 )

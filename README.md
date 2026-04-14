@@ -1,17 +1,18 @@
 # video_streaming
 
 ## Introduction
-`video_streaming` is a ROS 2 package for low-latency camera streaming to web browsers using WebRTC, with recording handled by the RTMP WebRTC gateway container.
+`video_streaming` is a ROS 2 package for low-latency camera streaming to web browsers using WebRTC.
 
 It supports two deployment modes:
-- **Single-node mode**: ROS node serves WebRTC directly (streaming only)
-- **DDS-isolated mode**: ROS side publishes to RTMP, non-ROS side serves WebRTC and recording
+- **Single-container mode**: ROS camera publisher and WebRTC server run together in one container
+- **Native ROS 2 mode**: ROS nodes run directly in your workspace
 
 What it does:
-- Captures frames from a local camera (default index `0`)
+- Captures frames from a local camera with `camera_publisher_node`
+- Publishes the frames on a ROS 2 topic such as `/camera/image_raw`
+- Subscribes to that ROS topic in `webrtc_camera_node`
 - Serves a WebRTC web app on port `8080`
 - Supports multiple browser clients
-- Records video files in DDS-isolated mode via gateway endpoints (`/recording/*`)
 
 ## Quick-Start
 
@@ -23,6 +24,10 @@ colcon build --packages-select video_streaming
 source install/setup.bash
 ros2 launch video_streaming stream_only.launch.py
 ```
+
+This starts both ROS nodes:
+- `camera_publisher_node` publishes camera frames to `/camera/image_raw`
+- `webrtc_camera_node` subscribes to that topic and serves WebRTC
 
 Open in browser:
 - `http://localhost:8080` (same machine)
@@ -42,48 +47,13 @@ Open in browser:
 - `http://<your-lan-ip>:8080`
 
 Note:
-- This single-container mode is for streaming.
-- Recording is supported in DDS-isolated mode (section C).
+- This is the recommended single-container mode.
+- The container runs both ROS nodes and the SPA assets stay separate in `video_streaming/www`.
 
 Useful Docker overrides:
 
 ```bash
 CAMERA_DEVICE=/dev/video2 HOST_PORT=8090 WIDTH=640 HEIGHT=360 FPS=15 ./docker/run_container.sh
-```
-
-### C) DDS-isolated mode (ROS side + non-ROS WebRTC side)
-This mode is for environments where browser-serving PC/container cannot join ROS 2 DDS.
-
-Pipeline:
-- ROS container: `camera_publisher_node` → `/camera/image_raw`
-- ROS container: `rtmp_bridge_node` publishes to RTMP server
-- Non-ROS container: WebRTC gateway reads RTMP and serves browser clients
-
-From `/home/giangnh101/ros_ws/src/video_streaming/docker`:
-
-```bash
-docker compose -f docker-compose.bridge.yml up --build
-```
-
-Open in browser:
-- `http://localhost:8080`
-- `http://<your-lan-ip>:8080`
-
-Optional overrides:
-
-```bash
-HOST_PORT=8090 CAMERA_DEVICE=/dev/video2 WIDTH=640 HEIGHT=360 FPS=15 docker compose -f docker-compose.bridge.yml up --build
-```
-
-Recording in DDS-isolated mode:
-- Recording is handled by `webrtc-gateway` (not ROS nodes)
-- Host folder `/home/giangnh101/video` is mounted to container path `/video`
-- Use API endpoints:
-
-```bash
-curl -X POST http://localhost:8080/recording/start
-curl -X POST http://localhost:8080/recording/stop
-curl http://localhost:8080/recording/status
 ```
 
 ## Prerequisites
@@ -97,15 +67,10 @@ Default launch/runtime values:
 - `host=0.0.0.0`
 - `port=8080`
 - `camera_index=0`
+- `image_topic=/camera/image_raw`
 - `width=640`
 - `height=360`
 - `fps=15`
-
-DDS-isolated mode defaults:
-- `rtmp_url=rtmp://rtmp-server:1935/stream/stream`
-- WebRTC gateway port `8080`
-- Recording directory in container: `/video`
-- Host bind mount for recordings: `/home/giangnh101/video:/video`
 
 Native launch override example:
 
@@ -123,6 +88,7 @@ ros2 launch video_streaming stream_only.launch.py width:=1280 height:=720 fps:=2
 	- Click **Start** on the web page to begin WebRTC negotiation
 	- Check node logs for camera errors
 	- Try a lower load: `width:=640 height:=360 fps:=12`
+	- Confirm `camera_publisher_node` and `webrtc_camera_node` are both running
 
 - **Cannot access from phone / another PC**
 	- Use `http://<your-lan-ip>:8080` (not `localhost`)
@@ -132,8 +98,3 @@ ros2 launch video_streaming stream_only.launch.py width:=1280 height:=720 fps:=2
 - **Docker container starts but browser cannot connect**
 	- Prefer host networking: `USE_HOST_NETWORK=1 ./docker/run_container.sh`
 	- If not using host networking, ensure port mapping is set (`HOST_PORT`)
-
-- **DDS-isolated mode: browser loads but no video**
-	- Check RTMP bridge logs in `ros-camera-rtmp` service
-	- Confirm RTMP URL matches in both services (`rtmp://rtmp-server:1935/stream/stream`)
-	- Wait a few seconds after startup for RTMP source to become ready

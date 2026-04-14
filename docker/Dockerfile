@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     ros-humble-cv-bridge \
     ros-humble-sensor-msgs \
-    ros-humble-image-transport \
     ros-humble-launch-ros \
     ffmpeg \
     v4l-utils \

@@ -1,6 +1,6 @@
 # ROS2 + OpenCV + WebRTC Container
 
-This folder provides a Dockerized setup to run a ROS 2 node that streams a local camera to a browser via WebRTC.
+This folder provides a single-container Dockerized setup to run a ROS 2 camera publisher and a ROS 2 WebRTC server together.
 
 ## Prerequisites
 
@@ -29,6 +29,7 @@ Optional environment variables:
 - `USE_HOST_NETWORK` (default `1`)
 - `HOST_IP` to override auto-detected LAN IP shown in startup logs
 - `CAMERA_INDEX` (default `0`)
+- `IMAGE_TOPIC` (default `/camera/image_raw`)
 - `WIDTH` (default `640`)
 - `HEIGHT` (default `360`)
 - `FPS` (default `15`)
@@ -77,5 +78,5 @@ docker run --rm -it \
   --device /dev/video0:/dev/video0 \
   --network host \
   video_streaming:humble \
-  ros2 run video_streaming webrtc_camera_node --host 0.0.0.0 --port 8080 --camera-index 0
+  ros2 launch video_streaming stream_only.launch.py camera_index:=0 image_topic:=/camera/image_raw
 ```

@@ -10,7 +10,7 @@ async function getIceServers() {
     iceServersPromise = fetch('/config')
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`Config error: ${response.status}`);
+          return { iceServers: [] };
         }
 
         return response.json();
@@ -216,66 +216,3 @@ window.addEventListener('beforeunload', () => {
     stop();
   }
 });
-
-// ---- Recording controls --------------------------------------------------
-
-function setRecordingUI(isRecording, message = null, file = null) {
-  const recStatus = document.getElementById('rec-status');
-  const recFile   = document.getElementById('rec-file');
-
-  document.getElementById('rec-start').disabled = isRecording;
-  document.getElementById('rec-stop').disabled  = !isRecording;
-
-  if (isRecording) {
-    recStatus.innerHTML = '<span class="rec-indicator"></span>Recording';
-    recStatus.className = 'status-value streaming';
-  } else {
-    recStatus.textContent = message || 'Idle';
-    recStatus.className   = 'status-value';
-  }
-
-  if (file) {
-    recFile.textContent = file;
-  }
-}
-
-async function recordingStart() {
-  try {
-    document.getElementById('rec-status').textContent = 'Starting...';
-    const res  = await fetch('/recording/start', { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      setRecordingUI(true, null, data.message.replace('Recording to ', ''));
-    } else {
-      setRecordingUI(false, `Error: ${data.message}`);
-    }
-  } catch (err) {
-    setRecordingUI(false, `Error: ${err.message}`);
-  }
-}
-
-async function recordingStop() {
-  try {
-    document.getElementById('rec-status').textContent = 'Stopping...';
-    const res  = await fetch('/recording/stop', { method: 'POST' });
-    const data = await res.json();
-    const file = data.message?.replace('Saved: ', '') ?? null;
-    setRecordingUI(false, 'Saved', file);
-  } catch (err) {
-    setRecordingUI(false, `Error: ${err.message}`);
-  }
-}
-
-// Sync button state with server on load
-async function syncRecordingStatus() {
-  try {
-    const res  = await fetch('/recording/status');
-    const data = await res.json();
-    setRecordingUI(data.recording);
-  } catch (_) {}
-}
-
-document.getElementById('rec-start').onclick = recordingStart;
-document.getElementById('rec-stop').onclick  = recordingStop;
-
-window.addEventListener('load', syncRecordingStatus);
