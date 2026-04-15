@@ -7,12 +7,36 @@ It supports two deployment modes:
 - **Single-container mode**: ROS camera publisher and WebRTC server run together in one container
 - **Native ROS 2 mode**: ROS nodes run directly in your workspace
 
+Current integration path:
+- **No GStreamer is used in the live pipeline**
+- Camera capture is handled by OpenCV in `camera_publisher_node`
+- Frame transport between ROS nodes uses a ROS 2 image topic
+- Browser streaming is handled by `webrtc_camera_node` using `aiortc` and `aiohttp`
+
 What it does:
 - Captures frames from a local camera with `camera_publisher_node`
 - Publishes the frames on a ROS 2 topic such as `/camera/image_raw`
 - Subscribes to that ROS topic in `webrtc_camera_node`
 - Serves a WebRTC web app on port `8080`
 - Supports multiple browser clients
+
+## Solution Overview
+
+```mermaid
+flowchart LR
+	Camera[Local USB / V4L2 Camera] --> Capture[camera_publisher_node\nOpenCV capture + resize]
+	Capture --> Topic[/ROS 2 image topic\n/camera/image_raw/]
+	Topic --> WebRTC[webrtc_camera_node\naiortc + aiohttp]
+	WebRTC -->|SDP offer / answer| Browser[Browser client]
+	WebRTC -->|serves| Static[www/index.html\nwww/client.js]
+	Browser <-->|WebRTC media stream| WebRTC
+```
+
+Integration notes:
+- `camera_publisher_node` reads from `/dev/video*`, converts the frames to ROS `sensor_msgs/Image`, and publishes them on the configured topic.
+- `webrtc_camera_node` subscribes to that topic, converts ROS images back into OpenCV frames, and hands them to the WebRTC track.
+- `www/client.js` creates the browser peer connection, posts the SDP offer to `/offer`, and attaches the incoming stream to the video element.
+- The server also hosts the static browser app from `video_streaming/www`.
 
 ## Quick-Start
 
