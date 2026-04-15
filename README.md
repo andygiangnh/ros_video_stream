@@ -1,5 +1,18 @@
 # video_streaming
 
+## Branches
+
+This project has two main branches with different architectures:
+
+- **`main`**: Direct WebRTC streaming (ROS 2 nodes → browser, all in same network)
+- **`kvs`**: AWS Kinesis Video Streams (ROS 2 → KVS → SPA on S3, cloud-based)
+
+See the appropriate README below or switch branches:
+- `git checkout main` - for direct WebRTC approach
+- `git checkout kvs` - for AWS-based streaming (see [cdk/README.md](cdk/README.md))
+
+---
+
 ## Introduction
 `video_streaming` is a ROS 2 package for low-latency camera streaming to web browsers using WebRTC.
 

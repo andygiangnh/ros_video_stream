@@ -3,13 +3,14 @@
 <package format="3">
   <name>video_streaming</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>ROS 2 camera streaming to web browsers via WebRTC and AWS Kinesis Video Streams</description>
   <maintainer email="giangnh101@todo.todo">giangnh101</maintainer>
-  <license>TODO: License declaration</license>
+  <license>MIT</license>
 
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>
   <depend>cv_bridge</depend>
+  <depend>python3-boto3</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

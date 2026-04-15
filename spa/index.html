@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROS 2 Camera Stream via AWS KVS</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ROS 2 Camera Streaming</h1>
+            <p>WebRTC stream via AWS Kinesis Video Streams</p>
+        </header>
+
+        <div class="config-panel">
+            <fieldset>
+                <legend>AWS KVS Configuration</legend>
+                <div class="form-group">
+                    <label for="streamName">Stream Name:</label>
+                    <input 
+                        type="text" 
+                        id="streamName" 
+                        value="ros2-camera-stream" 
+                        placeholder="Stream name">
+                </div>
+                <div class="form-group">
+                    <label for="awsRegion">AWS Region:</label>
+                    <input 
+                        type="text" 
+                        id="awsRegion" 
+                        value="us-east-1" 
+                        placeholder="AWS region">
+                </div>
+                <div class="form-group">
+                    <label for="iceServers">ICE Servers (JSON):</label>
+                    <textarea id="iceServers" rows="3" placeholder='[{"urls": ["stun:stun.l.google.com:19302"]}]'></textarea>
+                </div>
+                <button id="connect" onclick="connectStream()" class="btn-primary">Connect</button>
+                <button id="disconnect" onclick="disconnectStream()" class="btn-secondary" disabled>Disconnect</button>
+            </fieldset>
+        </div>
+
+        <div class="video-section">
+            <video id="video" autoplay playsinline muted class="video-element"></video>
+            <div class="metrics">
+                <div class="metric">
+                    <span class="metric-label">Status:</span>
+                    <span id="status" class="status-value">Idle</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">FPS:</span>
+                    <span id="fps">--</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">RTT:</span>
+                    <span id="rtt">-- ms</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Jitter Buffer:</span>
+                    <span id="jitter">-- ms</span>
+                </div>
+            </div>
+        </div>
+
+        <aside class="info-panel">
+            <h3>About This Stream</h3>
+            <p>
+                This application streams video from a ROS 2 node running on a local machine,
+                through AWS Kinesis Video Streams, and to your browser via WebRTC.
+            </p>
+            <h3>Signal Flow</h3>
+            <ol>
+                <li>Camera → ROS 2 camera_publisher_node</li>
+                <li>ros2_nodes/camera_publisher_node → /camera/image_raw (ROS 2 topic)</li>
+                <li>ros2_nodes/kvs_bridge_node → AWS KVS stream</li>
+                <li>AWS KVS → Browser (WebRTC)</li>
+            </ol>
+            <h3>Status Log</h3>
+            <div id="log" class="log"></div>
+        </aside>
+    </div>
+
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1000.0.min.js"></script>
+    <script src="client.js"></script>
+</body>
+</html>

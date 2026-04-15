@@ -1,0 +1,13 @@
+{
+  "app": "python3 app.py",
+  "watch": {
+    "include": ["**"],
+    "exclude": ["README.md", "cdk.out", "node_modules"]
+  },
+  "context": {
+    "streamName": "ros2-camera-stream",
+    "bucketName": "ros2-camera-kvs-app",
+    "enableCloudFront": true,
+    "region": "us-east-1"
+  }
+}

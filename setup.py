@@ -16,12 +16,12 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', glob.glob('launch/*.py')),
     ],
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'boto3', 'aiortc', 'aiohttp', 'av'],
     zip_safe=True,
     maintainer='giangnh101',
     maintainer_email='giangnh101@todo.todo',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='ROS 2 camera streaming via WebRTC and AWS KVS',
+    license='MIT',
     extras_require={
         'test': [
             'pytest',
@@ -29,8 +29,9 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'webrtc_camera_node = video_streaming.webrtc_camera_node:main',
             'camera_publisher_node = video_streaming.camera_publisher_node:main',
+            'webrtc_camera_node = video_streaming.webrtc_camera_node:main',
+            'kvs_bridge_node = video_streaming.kvs_bridge_node:main',
         ],
     },
 )
