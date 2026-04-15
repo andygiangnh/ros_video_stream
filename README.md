@@ -7,7 +7,7 @@ ROS 2 camera streaming pipeline using AWS Kinesis Video Streams and a separate s
 ```mermaid
 flowchart LR
     Cam[Local camera /dev/videoX] --> Pub[camera_publisher_node]
-    Pub --> Topic[/camera/image_raw]
+    Pub --> Topic["ROS2 topic: /camera/image_raw"]
     Topic --> Bridge[kvs_bridge_node]
     Bridge --> KVS[AWS Kinesis Video Stream]
     Browser[SPA in S3/CloudFront] --> KVS
