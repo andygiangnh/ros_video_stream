@@ -4,6 +4,8 @@ CDK App for KVS Camera Streaming Infrastructure.
 Provisions AWS services for ROS2 camera streaming via Kinesis Video Streams.
 """
 
+import os
+
 import aws_cdk as cdk
 from stacks.kvs_stack import KVSStack
 from stacks.s3_spa_stack import S3SPAStack
@@ -16,8 +18,19 @@ stream_name = app.node.try_get_context("streamName") or "ros2-camera-stream"
 bucket_name = app.node.try_get_context("bucketName") or "ros2-camera-kvs-app"
 enable_cloudfront = app.node.try_get_context("enableCloudFront") or True
 region = app.node.try_get_context("region") or "us-east-1"
+account = (
+    app.node.try_get_context("account")
+    or os.environ.get("CDK_DEFAULT_ACCOUNT")
+    or os.environ.get("AWS_ACCOUNT_ID")
+)
 
-env = cdk.Environment(region=region)
+if not account:
+    raise ValueError(
+        "AWS account is not set. Run with an SSO profile, or pass -c account=<account-id> "
+        "and make sure aws sts get-caller-identity works after aws sso login."
+    )
+
+env = cdk.Environment(account=account, region=region)
 
 # IAM stack (creates roles for ROS2 nodes)
 iam_stack = IAMStack(

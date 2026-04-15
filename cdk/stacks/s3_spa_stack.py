@@ -61,7 +61,7 @@ class S3SPAStack(cdk.Stack):
                 self,
                 "SPADistribution",
                 default_behavior=cloudfront.BehaviorOptions(
-                    origin=origins.S3Origin(self.bucket),
+                    origin=origins.S3StaticWebsiteOrigin(self.bucket),
                     viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
                     cache_policy=cloudfront.CachePolicy.CACHING_OPTIMIZED,
                 ),

@@ -1,0 +1,53 @@
+{
+  "/KVSCameraStreamStack": [
+    {
+      "type": "aws:cdk:stack-tags",
+      "data": [
+        {
+          "key": "ManagedBy",
+          "value": "CDK"
+        },
+        {
+          "key": "Project",
+          "value": "ROS2-KVS-Camera"
+        }
+      ]
+    }
+  ],
+  "/KVSCameraStreamStack/Ros2CameraKvsStream": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Ros2CameraKvsStream"
+    }
+  ],
+  "/KVSCameraStreamStack/KvsStreamArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "KvsStreamArn"
+    }
+  ],
+  "/KVSCameraStreamStack/KvsStreamName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "KvsStreamName"
+    }
+  ],
+  "/KVSCameraStreamStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/KVSCameraStreamStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/KVSCameraStreamStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ]
+}

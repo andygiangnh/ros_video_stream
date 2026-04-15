@@ -1,0 +1,94 @@
+{
+ "Resources": {
+  "Ros2CameraKvsStream": {
+   "Type": "AWS::KinesisVideo::Stream",
+   "Properties": {
+    "DataRetentionInHours": 24,
+    "DeviceName": "ros2-camera",
+    "MediaType": "video/h264",
+    "Name": "ros2-camera-stream",
+    "Tags": [
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Name",
+      "Value": "ros2-camera-stream"
+     },
+     {
+      "Key": "Project",
+      "Value": "ROS2-KVS-Camera"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "KVSCameraStreamStack/Ros2CameraKvsStream"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/zPSMzI10DNQTCwv1k1OydbNyUzSqw4uSUzO1kksL47PzsxLLc4sLstMSc3Xc07LCy4pSk3M1XFOy/MvLSkoLanVCagsycjP0zfWMzTQMzRSzCrOzNQtKs0rycxN1QuC0AApixbBZAAAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "KVSCameraStreamStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "KvsStreamArn": {
+   "Description": "Kinesis Video Stream ARN",
+   "Value": {
+    "Fn::GetAtt": [
+     "Ros2CameraKvsStream",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "KvsStreamArn"
+   }
+  },
+  "KvsStreamName": {
+   "Description": "Kinesis Video Stream name",
+   "Value": "ros2-camera-stream",
+   "Export": {
+    "Name": "KvsStreamName"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,148 @@
+{
+ "Resources": {
+  "Ros2KvsPublisherRoleC986F335": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":iam::",
+           {
+            "Ref": "AWS::AccountId"
+           },
+           ":root"
+          ]
+         ]
+        }
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Description": "Role for ROS2 node publishing frames to Kinesis Video Streams",
+    "Tags": [
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "ROS2-KVS-Camera"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "KVSCameraIAMStack/Ros2KvsPublisherRole/Resource"
+   }
+  },
+  "Ros2KvsPublisherRoleDefaultPolicy62C6107A": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "kinesisvideo:DescribeStream",
+        "kinesisvideo:GetDataEndpoint",
+        "kinesisvideo:PutMedia",
+        "kinesisvideo:ListStreams",
+        "kinesisvideo:CreateStream"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::Join": [
+          "",
+          [
+           "arn:aws:kinesisvideo:us-east-1:",
+           {
+            "Ref": "AWS::AccountId"
+           },
+           ":stream/ros2-camera-stream/*"
+          ]
+         ]
+        },
+        "*"
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "Ros2KvsPublisherRoleDefaultPolicy62C6107A",
+    "Roles": [
+     {
+      "Ref": "Ros2KvsPublisherRoleC986F335"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "KVSCameraIAMStack/Ros2KvsPublisherRole/DefaultPolicy/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/yXHQQ5AMBBA0bPYt6MqTuAAhANIFTFUKzqNNOLugtV/X4IsBIhEnZ7rYeUGe7haUnpl6vQdqg2uxpmRlZP9WjuDOr77635ZBdoD3ayONDub5pAJyGSyeER+BEu4jdD8fQDnSUsScQAAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "KVSCameraIAMStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "Ros2KvsPublisherRoleArn": {
+   "Description": "IAM role ARN for ROS2 KVS publishing",
+   "Value": {
+    "Fn::GetAtt": [
+     "Ros2KvsPublisherRoleC986F335",
+     "Arn"
+    ]
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

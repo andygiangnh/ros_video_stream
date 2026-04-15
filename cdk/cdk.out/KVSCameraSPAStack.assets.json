@@ -1,0 +1,21 @@
+{
+  "version": "53.0.0",
+  "files": {
+    "6616af19d6bebf1a643651d52a49d7c681a5592b1f2d5fe2c24c9ef2e90d146a": {
+      "displayName": "KVSCameraSPAStack Template",
+      "source": {
+        "path": "KVSCameraSPAStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "current_account-us-east-1-c7ed31f4": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1",
+          "objectKey": "6616af19d6bebf1a643651d52a49d7c681a5592b1f2d5fe2c24c9ef2e90d146a.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

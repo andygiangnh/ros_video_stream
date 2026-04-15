@@ -1,0 +1,53 @@
+{
+  "/KVSCameraIAMStack": [
+    {
+      "type": "aws:cdk:stack-tags",
+      "data": [
+        {
+          "key": "ManagedBy",
+          "value": "CDK"
+        },
+        {
+          "key": "Project",
+          "value": "ROS2-KVS-Camera"
+        }
+      ]
+    }
+  ],
+  "/KVSCameraIAMStack/Ros2KvsPublisherRoleArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Ros2KvsPublisherRoleArn"
+    }
+  ],
+  "/KVSCameraIAMStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/KVSCameraIAMStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/KVSCameraIAMStack/Ros2KvsPublisherRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Ros2KvsPublisherRoleC986F335"
+    }
+  ],
+  "/KVSCameraIAMStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/KVSCameraIAMStack/Ros2KvsPublisherRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "Ros2KvsPublisherRoleDefaultPolicy62C6107A"
+    }
+  ]
+}

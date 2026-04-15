@@ -11,6 +11,20 @@ This guide deploys the KVS-based ROS2 streaming solution, including the SPA fron
 - ROS 2 Humble environment
 - Linux camera device (for example `/dev/video0`)
 
+If you use AWS SSO, log in before any CDK command:
+
+```bash
+export AWS_PROFILE=<your-sso-profile>
+aws sso login --profile "$AWS_PROFILE"
+aws sts get-caller-identity --profile "$AWS_PROFILE"
+```
+
+If pip reports resolver warnings about `generate-parameter-library-py`, install the missing runtime packages first:
+
+```bash
+pip install jinja2 pyyaml
+```
+
 If you do not have permission for global npm installs, use:
 
 ```bash
@@ -22,7 +36,7 @@ export PATH="$HOME/.local/bin:$PATH"
 Validate AWS auth:
 
 ```bash
-aws sts get-caller-identity
+aws sts get-caller-identity --profile "$AWS_PROFILE"
 ```
 
 ## 2) Configure project variables
@@ -35,6 +49,7 @@ cd /home/giangnh101/ros_ws/src/video_streaming
 export AWS_REGION=us-east-1
 export STREAM_NAME=ros2-camera-stream
 export SPA_BUCKET_NAME=ros2-camera-kvs-app
+export AWS_PROFILE=<your-sso-profile>
 ```
 
 Optional: use a unique bucket name if the default is already taken.
@@ -48,12 +63,15 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # First time per account/region:
-cdk bootstrap aws://$(aws sts get-caller-identity --query Account --output text)/$AWS_REGION
+ACCOUNT_ID=$(aws sts get-caller-identity --profile "$AWS_PROFILE" --query Account --output text)
+cdk bootstrap aws://$ACCOUNT_ID/$AWS_REGION --profile "$AWS_PROFILE"
 
 # Deploy with context overrides
 cdk deploy --all \
+  --profile "$AWS_PROFILE" \
   -c streamName=$STREAM_NAME \
   -c bucketName=$SPA_BUCKET_NAME \
+  -c account=$ACCOUNT_ID \
   -c region=$AWS_REGION
 ```
 
@@ -70,13 +88,14 @@ From repository root:
 ```bash
 cd /home/giangnh101/ros_ws/src/video_streaming/spa
 chmod +x deploy.sh
-./deploy.sh $SPA_BUCKET_NAME $AWS_REGION
+AWS_PROFILE=$AWS_PROFILE ./deploy.sh $SPA_BUCKET_NAME $AWS_REGION
 ```
 
 If CloudFront is enabled and you changed frontend files, invalidate cache:
 
 ```bash
 aws cloudfront create-invalidation \
+  --profile "$AWS_PROFILE" \
   --distribution-id <YOUR_DISTRIBUTION_ID> \
   --paths "/*"
 ```
@@ -160,7 +179,7 @@ Then deploy frontend with:
 
 ```bash
 cd /home/giangnh101/ros_ws/src/video_streaming/spa
-./deploy.sh $SPA_BUCKET_NAME $AWS_REGION
+AWS_PROFILE=$AWS_PROFILE ./deploy.sh $SPA_BUCKET_NAME $AWS_REGION
 ```
 
 ## 9) Teardown
@@ -170,7 +189,7 @@ CDK-managed resources:
 ```bash
 cd /home/giangnh101/ros_ws/src/video_streaming/cdk
 source .venv/bin/activate
-cdk destroy --all -c streamName=$STREAM_NAME -c bucketName=$SPA_BUCKET_NAME -c region=$AWS_REGION
+cdk destroy --all --profile "$AWS_PROFILE" -c streamName=$STREAM_NAME -c bucketName=$SPA_BUCKET_NAME -c account=$ACCOUNT_ID -c region=$AWS_REGION
 ```
 
 CLI-managed resources:

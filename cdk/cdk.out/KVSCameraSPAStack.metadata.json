@@ -1,0 +1,77 @@
+{
+  "/KVSCameraSPAStack": [
+    {
+      "type": "aws:cdk:stack-tags",
+      "data": [
+        {
+          "key": "ManagedBy",
+          "value": "CDK"
+        },
+        {
+          "key": "Project",
+          "value": "ROS2-KVS-Camera"
+        }
+      ]
+    }
+  ],
+  "/KVSCameraSPAStack/DistributionUrl": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "DistributionUrl"
+    }
+  ],
+  "/KVSCameraSPAStack/DistributionId": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "DistributionId"
+    }
+  ],
+  "/KVSCameraSPAStack/BucketUrl": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BucketUrl"
+    }
+  ],
+  "/KVSCameraSPAStack/BucketName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BucketName"
+    }
+  ],
+  "/KVSCameraSPAStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/KVSCameraSPAStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/KVSCameraSPAStack/SPABucket/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SPABucket347F931B"
+    }
+  ],
+  "/KVSCameraSPAStack/SPADistribution/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SPADistribution27FE988B"
+    }
+  ],
+  "/KVSCameraSPAStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/KVSCameraSPAStack/SPABucket/Policy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SPABucketPolicy7F5EE50E"
+    }
+  ]
+}
