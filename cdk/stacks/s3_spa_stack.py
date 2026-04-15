@@ -4,8 +4,8 @@ S3 SPA Stack: Creates S3 bucket for hosting the single-page app and optional Clo
 
 import aws_cdk as cdk
 from aws_cdk import (
+    aws_iam as iam,
     aws_s3 as s3,
-    aws_s3_deployment as s3deploy,
     aws_cloudfront as cloudfront,
     aws_cloudfront_origins as origins,
 )
@@ -31,6 +31,9 @@ class S3SPAStack(cdk.Stack):
             "SPABucket",
             bucket_name=bucket_name,
             versioned=True,
+            public_read_access=True,
+            website_index_document="index.html",
+            website_error_document="index.html",
             block_public_access=s3.BlockPublicAccess(
                 block_public_acls=False,
                 block_public_policy=False,
@@ -43,24 +46,13 @@ class S3SPAStack(cdk.Stack):
 
         # Bucket policy for public read access
         self.bucket.add_to_resource_policy(
-            s3.PolicyStatement(
+            iam.PolicyStatement(
                 sid="PublicReadGetObject",
-                effect=cdk.aws_iam.Effect.ALLOW,
-                principals=[cdk.aws_iam.AnyPrincipal()],
+                effect=iam.Effect.ALLOW,
+                principals=[iam.AnyPrincipal()],
                 actions=["s3:GetObject"],
                 resources=[self.bucket.arn_for_objects("*")],
             )
-        )
-
-        # Enable static website hosting
-        self.bucket.add_access_log(
-            target_bucket=s3.Bucket(
-                self,
-                "AccessLogBucket",
-                encryption=s3.BucketEncryption.S3_MANAGED,
-                enforce_ssl=True,
-            ),
-            prefix="spa-access-logs/",
         )
 
         # Optional CloudFront distribution for better performance and HTTPS
@@ -113,7 +105,7 @@ class S3SPAStack(cdk.Stack):
         cdk.CfnOutput(
             self,
             "BucketUrl",
-            value=self.bucket.bucket_website_url,
+            value=website_url,
             description="S3 website URL (without CloudFront)",
         )
 
